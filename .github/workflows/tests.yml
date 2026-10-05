@@ -1,0 +1,49 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12"]
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run the tests (offline)
+        run: pytest -v
+
+      - name: Check the types (mypy strict)
+        run: mypy
+
+      # Mini-project 2 works offline, so CI can run the whole notebook.
+      # Mini-project 1 calls live weather APIs, so CI does not run it.
+      - name: Run the tax notebook from top to bottom
+        env:
+          MPLBACKEND: Agg
+        run: jupyter nbconvert --to notebook --execute --output-dir /tmp/executed project2_uganda_tax.ipynb
